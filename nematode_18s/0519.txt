@@ -1,0 +1,9 @@
+split_libraries.py -m map_D2_1.txt -f fastqjoin.join.fna -q fastqjoin.join.qual -b 0 -z truncate_only -p -o .
+
+caffeinate pick_open_reference_otus.py -i seqs_chimeras_filtered.fna -p 99_parameters.txt -o 10_seq_chimera_filtered --min_otu_size 10 --suppress_align_and_tree -a -O 2 -r /Users/ryankepler/Documents/FSP_metagenomics/Silva_111_post/eukaryotes_only/rep_set_euks/97_Silva_111_rep_set_euk.fasta
+
+caffeinate core_diversity_analyses.py -i split_otu/otu_table_Eukaryota___Opisthokonta___Metazoa___Nematoda.biom -o cd_nematodes_0511 -m nema_map_0510.txt -e 10000 -p cd_params.txt -a --nonphylogenetic_diversity
+
+summarize_taxa.py -i split_otus/otu_table_Eukaryota___Opisthokonta___Metazoa___Nematoda.biom -o split_otus/nematode_summary -a
+
+perl -pi -e 's/'\''//g' ./*/*.phy
