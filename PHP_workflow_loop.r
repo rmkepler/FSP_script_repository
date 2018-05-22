@@ -65,9 +65,11 @@ ntaxa(ps.new)
 
 unique.meta <- as.data.frame(unique(phpmeta[c("Location", "Soil_Zone", "crop")]))
 
+unique.meta <- unique.meta[(unique.meta$Location == "Beltsville"),]
+
 registerDoMC(cores = 8)
 
-ptm <- proc.time()
+#ptm <- proc.time()
 foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% { 
   # get variable values
   loc <- as.character(unique.meta["Location"][a,])
@@ -114,16 +116,23 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   axisvals <- bray$vectors
   qiime <- merge(as.data.frame(sample_data(ps.0)), axisvals, by = "row.names")
   write.table(qiime, sep = "\t", file = file.path(out.dir, paste(thing,"txt", sep = ".")), row.names = F, quote = F)
+  
+  # perform PERMANOVA 
+  out <- adonis(t(otu_table(ps.0)) ~ System.loc * Glyphosphate_Treatment * Sampling_date, strata = sample_data(ps.0)$Loc_plot_ID, as(sample_data(ps.0), "data.frame"))
+  write.table(as.matrix(out$aov.tab), file = file.path(out.dir, paste(thing,"perm", "txt", sep = "."))  , quote = F, sep = ",")
 }
-proc.time() - ptm
+#proc.time() - ptm
 
 # heatmap for some of the saved subsets ####
 
-fsp.soy.rhiz <- readRDS("Beltsville/Beltsville_rhizosphere_soy/Beltsville_rhizosphere_soy.rds")
-fsp.soy.rhiz.VST <- readRDS("Beltsville/Beltsville_rhizosphere_soy/Beltsville_rhizosphere_soy_vst.rds")
+sv.soy.rhiz <- readRDS("Stoneville/Stoneville_rhizosphere_soy/Stoneville_rhizosphere_soy.rds")
+sv.soy.rhiz.VST <- readRDS("Stoneville/Stoneville_rhizosphere_soy/Stoneville_rhizosphere_soy_vst.rds")
 
-fsp.soy.rhiz.VST[fsp.soy.rhiz.VST < 0.0] <- 0.0
-otu_table(fsp.soy.rhiz) <- otu_table(fsp.soy.rhiz.VST, taxa_are_rows = TRUE)
+sv.soy.rhiz.VST[sv.soy.rhiz.VST < 0.0] <- 0.0
+otu_table(sv.soy.rhiz) <- otu_table(sv.soy.rhiz.VST, taxa_are_rows = TRUE)
+out <- adonis(t(otu_table(sv.soy.rhiz)) ~ System.loc * Glyphosphate_Treatment * Sampling_date, strata = sample_data(sv.soy.rhiz)$Loc_plot_ID, as(sample_data(sv.soy.rhiz), "data.frame"))
+
+
 # homogeneity of variances ####
 fsr.dist <- dist(otu_table(fsp.soy.rhiz), method = "euclidean")
 fsr.beta <- betadisper(fsr.dist, sample_data(fsp.soy.rhiz)$Sampling_date)
