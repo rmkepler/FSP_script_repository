@@ -38,6 +38,7 @@ seqtab.new<-readRDS("fungi_seqs2.rds")
 phpfuntax.new<-readRDS(file = "fungi_taxa2.rds")
 phpfuntax.new <- cbind( phpfuntax.new, "seq" = rownames(phpfuntax.new), "fasta_name" = paste0("phpfung", seq(1:nrow(phpfuntax.new))))
 phpmeta<-readRDS("phpmeta_corrected.rds")
+
 # Fix Stoneville System.loc names
 phpmeta$System.loc <- as.character(phpmeta$System.loc)
 phpmeta$Herbicide_History <- as.character(phpmeta$Herbicide_History)
@@ -45,6 +46,7 @@ phpmeta$System.loc[phpmeta$Location == "Stoneville"] <- paste(phpmeta$System.loc
 phpmeta$System.loc <- as.factor(phpmeta$System.loc)
 phpmeta$Herbicide_History <- as.factor(phpmeta$Herbicide_History)
 phpmeta$year<-as.factor(phpmeta$year)
+
 # Make alternate sampleID and variables
 phpmeta$group <- factor(paste(phpmeta$System.loc, phpmeta$Glyphosphate_Treatment, sep = "_"))
 phpmeta$q_id <- factor(paste(phpmeta$System.loc, phpmeta$Glyphosphate_Treatment, phpmeta$Soil_Zone, phpmeta$year, sep = "_"))
@@ -63,11 +65,6 @@ if (identical(taxa_names(ps.new), as.character(phpfuntax.new[,"seq"]))) {
 
 taxa_names(ps.new)[1:5]
 
-phpmeta$System.loc[phpmeta$Location == "Stoneville"] <- paste(phpmeta$System.loc[phpmeta$Location == "Stoneville"], phpmeta$Herbicide_History[phpmeta$Location == "Stoneville"], sep = "_")
-
-taxa_names(ps.new)[1:5]
-
-ntaxa(ps.new)
 ps.new <- subset_taxa(ps.new, Kingdom == "k__Fungi")
 ntaxa(ps.new)
 
@@ -125,7 +122,7 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   # save vectors from PCoA for use in qiime2 longitudinal test
   axisvals <- bray$vectors
   qiime <- merge(as.data.frame(sample_data(ps.0)), axisvals, by = "row.names")
-  write.table(qiime, sep = "\t", file = file.path(out.dir, paste(thing,"txt", sep = ".")), row.names = F, quote = F)
+  write.table(qiime, sep = "\t", file = file.path(out.dir, paste(thing, "qiime", "txt", sep = ".")), row.names = F, quote = F)
   
   # perform PERMANOVA 
   out <- adonis(t(otu_table(ps.0)) ~ System.loc * year * Soil_Zone * Glyphosphate_Treatment * Sampling_date, strata = sample_data(ps.0)$Loc_plot_ID, as(sample_data(ps.0), "data.frame"))
