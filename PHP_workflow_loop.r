@@ -12,6 +12,7 @@ library(DESeq2)
 library(doMC)
 library(foreach)
 library("pheatmap")
+library(dplyr)
 options(warnings=-1)
 
 # creation of phyloseq object ####
@@ -30,9 +31,8 @@ options(warnings=-1)
 #phpmeta$System.loc[phpmeta$System.loc=="CT-FF"]<-"CT" #other transformations done as well
 #saveRDS(phpmeta, file = "phpmeta_corrected.rds")
 
-# Import output from dada2 and metadata ####
+# Construct initial phyloseq object ####
 # create phyloseq object and change taxa names to something shorter
-
 
 seqtab.new<-readRDS("fungi_seqs2.rds")
 phpfuntax.new<-readRDS(file = "fungi_taxa2.rds")
@@ -70,8 +70,8 @@ ntaxa(ps.new)
 
 # Run standard workflow in parallel ####
 # create subsets for combinations of sample data values
-# this version is for Location, Soil_Zone, crop 
-# Genotype is hardcoded for this version. See line BLAH
+# this version is for Location, crop 
+# Genotype is hardcoded for this version. Search "genotype.row".
 
 unique.meta <- as.data.frame(unique(phpmeta[c("Location", "crop")]))
 unique.meta <- unique.meta[(unique.meta$Location == "Stoneville"),]
@@ -103,6 +103,11 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   ps.0 <- prune_taxa(taxa_sums(ps.0) > 10, ps.0)
   saveRDS(ps.0, file.path(out.dir, paste(thing,".rds", sep = "")))
   
+  # estimate richness, all available metrics
+  rich <- data.frame(estimate_richness(ps.0))
+  row.names(rich) <- sub("X", "", row.names(rich))
+  rich$samples <- row.names(rich)
+  
   # DESeq2 variance stablization
   ps.ds <- phyloseq_to_deseq2(ps.0, ~ group + year + Sampling_date + group:Sampling_date)
   ps.ds = estimateSizeFactors(ps.ds)
@@ -117,15 +122,25 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   ps.plot<-plot_ordination(ps.0, bray, type="samples", color="group", shape="year") +
     ggtitle(paste(thing, "samples:", nsamples(ps.0), "taxa:", ntaxa(ps.0), sep = " ")) + 
     geom_point(size = 3)
-  ggsave(filename = file.path(out.dir, paste(thing,"pdf", sep = ".")), plot = ps.plot, width = 20, height = 14, units = "cm", device = "pdf", dpi = 300)
+  ggsave(filename = file.path(out.dir, paste(thing,"pdf", sep = ".")), 
+         plot = ps.plot, width = 20, height = 14, units = "cm", 
+         device = "pdf", dpi = 300)
   
-  # save vectors from PCoA for use in qiime2 longitudinal test
-  axisvals <- bray$vectors
-  qiime <- merge(as.data.frame(sample_data(ps.0)), axisvals, by = "row.names")
-  write.table(qiime, sep = "\t", file = file.path(out.dir, paste(thing, "qiime", "txt", sep = ".")), row.names = F, quote = F)
+  # save vectors from PCoA and richness estimates for use in qiime2 longitudinal test
+  axisvals <- data.frame(bray$vectors)[,1:3]
+  axisvals$samples <- row.names(axisvals)
+  
+  meta <- data.frame(sample_data(ps.0))
+  meta$samples <- row.names(meta)
+  qiime <- left_join(meta, rich, by = "samples") %>% 
+    left_join(., axisvals, by = "samples")
+  write.table(qiime, sep = "\t", 
+              file = file.path(out.dir, paste(thing, "qiime", "txt", sep = ".")), 
+              row.names = F, quote = F)
   
   # perform PERMANOVA 
-  out <- adonis(t(otu_table(ps.0)) ~ System.loc * year * Soil_Zone * Glyphosphate_Treatment * Sampling_date, strata = sample_data(ps.0)$Loc_plot_ID, as(sample_data(ps.0), "data.frame"))
+  out <- adonis(t(otu_table(ps.0)) ~ System.loc * year * Soil_Zone * Glyphosphate_Treatment * Sampling_date, 
+                strata = sample_data(ps.0)$Loc_plot_ID, as(sample_data(ps.0), "data.frame"))
   
   write.table(as.matrix(cbind(rownames(out$aov.tab), out$aov.tab)), 
               file = file.path(out.dir, paste(thing,"perm", "txt", sep = ".")), 
