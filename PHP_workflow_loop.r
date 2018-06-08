@@ -13,6 +13,7 @@ library(doMC)
 library(foreach)
 library("pheatmap")
 library(dplyr)
+library(RColorBrewer)
 options(warnings=-1)
 
 # creation of phyloseq object ####
@@ -51,7 +52,6 @@ phpmeta$year<-as.factor(phpmeta$year)
 phpmeta$group <- factor(paste(phpmeta$System.loc, phpmeta$Glyphosphate_Treatment, sep = "_"))
 phpmeta$q_id <- factor(paste(phpmeta$System.loc, phpmeta$Glyphosphate_Treatment, phpmeta$Soil_Zone, phpmeta$year, sep = "_"))
 
-
 ps.new <- phyloseq(otu_table(seqtab.new, taxa_are_rows=FALSE), 
                    sample_data(phpmeta), 
                    tax_table(phpfuntax.new))
@@ -68,13 +68,41 @@ taxa_names(ps.new)[1:5]
 ps.new <- subset_taxa(ps.new, Kingdom == "k__Fungi")
 ntaxa(ps.new)
 
+# NMDS for all samples, all sites ####
+# At this point in the workflow there is no filtering of low abundance taxa
+# You might want to do that later, but you will need to build a filtered
+# phyloseq object 
+# remove Urbana sites and non-RR genotype samples first
+ps.newREL <- subset_samples(ps.new, Location != "Urbana" & genotype == "RR")
+ps.newREL <- prune_taxa(taxa_sums(ps.newREL) > 10, ps.newREL)
+
+ps.newREL  = transform_sample_counts(ps.newREL, function(x) x / sum(x) )
+set.seed(1978)
+all.ord.nmds.bray <- ordinate(ps.newREL, method="PCoA", distance="bray") #, maxit = 30000, sratmax = 0.99999999, sfgrmin = 1e-10)#, sratmax = 0.9999999)#, k = 2, sfgrmin = 1e-8, sratmax = 0.999999, maxit = 30000)
+all.plot<-plot_ordination(ps.newREL, all.ord.nmds.bray, type="samples", color="System.loc", shape = "crop") + 
+  geom_hline(yintercept = 0, color = "grey90") + 
+  geom_vline(xintercept = 0, color = "grey90") +
+  geom_point(size = 2.5) + 
+  theme_classic() + 
+  scale_color_manual(values = c("#FF7F00", "#E31A1C", "#6A3D9A", "#B15928", "#33A02C","#1F78B4")) + 
+  ggtitle("All sites")
+all.plot
+ggsave("all_sites_pcoa_reltrans_taxa.pdf", plot = all.plot, device = pdf, height = 6, width = 8)
+
+
 # Run standard workflow in parallel ####
 # create subsets for combinations of sample data values
 # this version is for Location, crop 
 # Genotype is hardcoded for this version. Search "genotype.row".
 
 unique.meta <- as.data.frame(unique(phpmeta[c("Location", "crop")]))
-unique.meta <- unique.meta[(unique.meta$Location == "Stoneville"),]
+unique.meta <- unique.meta[(unique.meta$Location != "Urbana"),]
+
+# Set custom color palettes for each site when plotting PCoA
+# These colors are used throughout all graphics. 
+# Darker shades for System.loc, lighter for those that have been sprayed 
+unique.meta$palette[unique.meta$Location == "Beltsville"] <- list(c("#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99", "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"))
+unique.meta$palette[unique.meta$Location == "Stoneville"] <- list(c("#6A3D9A", "#CAB2D6", "#B15928", "#EEAD0E"))
 
 registerDoMC(cores = 8)
 
@@ -83,6 +111,7 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   # get variable values
   loc <- as.character(unique.meta["Location"][a,])
   crop <- as.character(unique.meta["crop"][a,])
+  pal <- unique.meta$palette[[a]]
   
   # make a name to recycle
   thing <- paste(loc, crop, sep = "_")
@@ -110,9 +139,9 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   
   # DESeq2 variance stablization
   ps.ds <- phyloseq_to_deseq2(ps.0, ~ group + year + Sampling_date + group:Sampling_date)
-  ps.ds = estimateSizeFactors(ps.ds)
-  ps.ds = estimateDispersions(ps.ds)
-  psVST = getVarianceStabilizedData(ps.ds)
+  ps.ds <- estimateSizeFactors(ps.ds)
+  ps.ds <- estimateDispersions(ps.ds)
+  psVST <- getVarianceStabilizedData(ps.ds)
   saveRDS(psVST, file.path(out.dir, paste(thing, "_vst", ".rds", sep = "")))
   
   # perform ordinations
@@ -121,7 +150,11 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   bray <- ordinate(ps.0, method="PCoA", distance="bray")
   ps.plot<-plot_ordination(ps.0, bray, type="samples", color="group", shape="year") +
     ggtitle(paste(thing, "samples:", nsamples(ps.0), "taxa:", ntaxa(ps.0), sep = " ")) + 
-    geom_point(size = 3)
+    theme_classic() +
+    geom_hline(yintercept = 0, color = "grey90") + 
+    geom_vline(xintercept = 0, color = "grey90") +
+    geom_point(size = 3) + 
+    scale_color_manual(values = pal)
   ggsave(filename = file.path(out.dir, paste(thing,"pdf", sep = ".")), 
          plot = ps.plot, width = 20, height = 14, units = "cm", 
          device = "pdf", dpi = 300)
@@ -154,74 +187,184 @@ proc.time() - ptm
 # Execute from top level directory for each site. Edit as necessary.
 # tail -n +1 Stoneville_*/*.perm.txt | perl -p -e 's/^.*\/(\w+)\.perm\.txt.*$/$1/g' > all_permanova.txt
 
-# Test some of the saved subsets ####
+# Final Figures ####
 
+#Stoneville heatmap palette
+
+sv_colors <- list(
+  Glyphosphate_Treatment = c(no_spray = "#9BCD9B", spray = "#CDAA7D"),
+  System.loc = c(NT_none = "#B15928", NT_15yrs = "#6A3D9A"),
+  Sampling_date = c(post = "grey80", pre = "grey50")
+)
+
+# Stoneville soy
 sv.soy <- readRDS("Stoneville/Stoneville_soy/Stoneville_soy.rds")
 sv.soy.VST <- readRDS("Stoneville/Stoneville_soy/Stoneville_soy_vst.rds")
 
 sv.soy.VST[sv.soy.VST < 0.0] <- 0.0
 otu_table(sv.soy) <- otu_table(sv.soy.VST, taxa_are_rows = TRUE)
 
-# taxon abundance across samples ####
+sv.bray <- ordinate(sv.soy, method="PCoA", distance="bray")
+sv.plot<-plot_ordination(sv.soy, sv.bray, type="samples", color="group", shape="year") +
+  geom_hline(yintercept = 0, color = "grey90") + 
+  geom_vline(xintercept = 0, color = "grey90") +
+  geom_point(size = 3) + 
+  ggtitle("Stoneville Soy") + theme_classic() +
+  scale_color_manual(values = c("#6A3D9A", "#CAB2D6", "#B15928", "#EEAD0E"))
+sv.plot
+ggsave(filename = "Stoneville/Stoneville_soy/stoneville_soy_palette.pdf", 
+       plot = sv.plot, width = 20, height = 14, units = "cm", 
+       device = "pdf", dpi = 300)
 
-sv.soy.DS <-phyloseq_to_deseq2(sv.soy, ~ group + year + Sampling_date + group:Sampling_date)
-
-#diagdds = DESeq(fsp.soy.rhizDS, test="Wald", fitType="parametric")
-
-#vsd <- vst(diagdds)
-select <- order(rowMeans(counts(sv.soy.DS,normalized=F)),
-                decreasing=TRUE)[1:20]
-df <- as.data.frame(colData(sv.soy.DS)[,c("group","Sampling_date")])
-
-df <- df[with(df, order(group,Sampling_date)), ]
-vsdASSAY <- sv.soy.VST[select,]
-
-vsdASSAY <- vsdASSAY[,rownames(df)]
-
-heat.tax <- as.data.frame(tax_table(sv.soy)[row.names(sv.soy.VST)])
+# Stoneville Soy Fusarium 
+df <- data.frame(sample_data(sv.soy)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
+df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
+df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
+select <- taxa_names(subset_taxa(sv.soy, Genus == "g__Fusarium"))
+vsttest <- as.data.frame(sv.soy.VST[select,])
+vsttest <-vsttest[,rownames(df)]
+heat.tax <- as.data.frame(tax_table(sv.soy)[row.names(vsttest)])
 heat.tax <- lapply(heat.tax, function(x) gsub("^[a-z]_\\w", "", x, perl = T))
+row.names(vsttest) <- paste(heat.tax$Genus, heat.tax$Species, heat.tax$fasta_name, sep = "_")
+vsttest <- vsttest[order(row.names(vsttest)),]
 
-row.names(sv.soy.VST) <- paste(heat.tax$fasta_name, heat.tax$Genus, heat.tax$Species, sep = "_")
-
-#assay(vsd)[select,]
-pheatmap(vsdASSAY, cluster_rows=FALSE, show_rownames=T,
-         cluster_cols=F, annotation_col=df) #,
-         #filename = "sv_soy_heat.pdf")
-
-# fsp heat maps ####
-fsp.corn <- readRDS("Beltsville/Beltsville_corn/Beltsville_corn.rds")
-
-#fsp.corn.VST <- readRDS("Beltsville/Beltsville_corn/Beltsville_corn_vst.rds")
-
-#fsp.corn.VST[fsp.corn.VST < 0.0] <- 0.0
-#otu_table(fsp.corn) <- otu_table(fsp.corn.VST, taxa_are_rows = TRUE)
-
-# taxon abundance across samples ####
-sample_data(fsp.corn)$group <- factor(paste0(sample_data(fsp.corn)$group, sample_data(fsp.corn)$Sampling_date))
-fsp.corn.DS <-phyloseq_to_deseq2(fsp.corn, ~ group)
-diagdds = DESeq(fsp.corn.DS, test="Wald", fitType="parametric")
-
-vsd <- vst(diagdds)
-select <- order(rowMeans(counts(diagdds,normalized=TRUE)),
-                decreasing=TRUE)[1:20]
-select <- taxa_names(subset_taxa(fsp.corn, Order == "o__Hypocreales"))
-df <- as.data.frame(colData(diagdds)[,c("group","Sampling_date")])
-
-df <- df[with(df, order(group,Sampling_date)), ]
-vsdASSAY <-assay(vsd)[select,]
-
-vsdASSAY <- vsdASSAY[,rownames(df)]
-
-heat.tax <- as.data.frame(tax_table(fsp.corn)[row.names(vsdASSAY)])
-heat.tax <- lapply(heat.tax, function(x) gsub("^[a-z]_\\w", "", x, perl = T))
-
-row.names(vsdASSAY) <- paste(heat.tax$Genus, heat.tax$Species, heat.tax$fasta_name, sep = "_")
-vsdASSAY <- vsdASSAY[order(row.names(vsdASSAY)), ]
-#assay(vsd)[select,]
-pheatmap(vsdASSAY, cluster_rows=FALSE, show_rownames=T, 
+pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T, 
          show_colnames = F,
-         cluster_cols=F, annotation_col=df) #,
-         #filename = "fsp_corn_vst_nectriaceae_heat.pdf")
+         breaks = NA,
+         cluster_cols=F, 
+         annotation_col=df,
+         main = "Stoneville Soy Fusarium",
+         annotation_colors = sv_colors,
+         filename = "Stoneville/Stoneville_soy/sv_soy_vst_fusarium_heat.pdf")
+
+# Stoneville Corn
+sv.corn <- readRDS("Stoneville/Stoneville_corn/Stoneville_corn.rds")
+sv.corn.VST <- readRDS("Stoneville/Stoneville_corn/Stoneville_corn_vst.rds")
+
+sv.corn.VST[sv.corn.VST < 0.0] <- 0.0
+otu_table(sv.corn) <- otu_table(sv.corn.VST, taxa_are_rows = TRUE)
+
+sv.bray <- ordinate(sv.corn, method="PCoA", distance="bray")
+sv.plot<-plot_ordination(sv.corn, sv.bray, type="samples", color="group", shape="year") +
+  geom_hline(yintercept = 0, color = "grey90") + 
+  geom_vline(xintercept = 0, color = "grey90") +
+  geom_point(size = 3) + 
+  ggtitle("Stoneville Corn") + theme_classic() +
+  scale_color_manual(values = c("#6A3D9A", "#CAB2D6", "#B15928", "#EEAD0E"))
+ggsave(filename = "Stoneville/Stoneville_corn/stoneville_corn_palette.pdf", 
+       plot = sv.plot, width = 20, height = 14, units = "cm", 
+       device = "pdf", dpi = 300)
+sv.plot
+
+# Stoneville Corn Fusarium
+df <- data.frame(sample_data(sv.corn)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
+df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
+df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
+select <- taxa_names(subset_taxa(sv.corn, Genus == "g__Fusarium"))
+vsttest <- as.data.frame(sv.corn.VST[select,])
+vsttest <-vsttest[,rownames(df)]
+heat.tax <- as.data.frame(tax_table(sv.corn)[row.names(vsttest)])
+heat.tax <- lapply(heat.tax, function(x) gsub("^[a-z]_\\w", "", x, perl = T))
+row.names(vsttest) <- paste(heat.tax$Genus, heat.tax$Species, heat.tax$fasta_name, sep = "_")
+vsttest <- vsttest[order(row.names(vsttest)),]
+
+pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T, 
+         show_colnames = F,
+         breaks = NA,
+         cluster_cols=F, 
+         annotation_col=df,
+         main = "Stoneville Corn Fusarium",
+         annotation_colors = sv_colors,
+         filename = "Stoneville/Stoneville_corn/sv_corn_vst_fusarium_heat.pdf")
+
+#Beltsville heatmap palette
+
+fsp_colors <- list(
+  Glyphosphate_Treatment = c(no_spray = "#9BCD9B", spray = "#CDAA7D"),
+  System.loc = c(CT = "#FF7F00", NT = "#E31A1C", Org_3 = "#33A02C", Org_6 = "#1F78B4"),
+  Sampling_date = c(post = "grey80", pre = "grey50")
+)
+
+# Beltsville soy
+fsp.soy <- readRDS("Beltsville/Beltsville_soy/Beltsville_soy.rds")
+fsp.soy.VST <- readRDS("Beltsville/Beltsville_soy/Beltsville_soy_vst.rds")
+
+fsp.soy.VST[fsp.soy.VST < 0.0] <- 0.0
+otu_table(fsp.soy) <- otu_table(fsp.soy.VST, taxa_are_rows = TRUE)
+
+fsp.bray <- ordinate(fsp.soy, method="PCoA", distance="bray")
+fsp.plot<-plot_ordination(fsp.soy, fsp.bray, type="samples", color="group", shape="year") +
+  geom_hline(yintercept = 0, color = "grey90") + 
+  geom_vline(xintercept = 0, color = "grey90") +
+  geom_point(size = 3) + 
+  ggtitle("Beltsville Soy") + theme_classic() +
+  scale_color_manual(values = c("#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99", "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"))
+ggsave(filename = "Beltsville/Beltsville_soy/beltsville_soy_palette.pdf", 
+       plot = fsp.plot, width = 20, height = 14, units = "cm", 
+       device = "pdf", dpi = 300)
+fsp.plot
+
+# Beltsville Soy Fusarium
+df <- data.frame(sample_data(fsp.soy)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
+df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
+df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
+select <- taxa_names(subset_taxa(fsp.soy, Genus == "g__Fusarium"))
+vsttest <- as.data.frame(fsp.soy.VST[select,])
+vsttest <-vsttest[,rownames(df)]
+heat.tax <- as.data.frame(tax_table(fsp.soy)[row.names(vsttest)])
+heat.tax <- lapply(heat.tax, function(x) gsub("^[a-z]_\\w", "", x, perl = T))
+row.names(vsttest) <- paste(heat.tax$Genus, heat.tax$Species, heat.tax$fasta_name, sep = "_")
+vsttest <- vsttest[order(row.names(vsttest)),]
+
+pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T, 
+         show_colnames = F,
+         breaks = NA,
+         cluster_cols=F, 
+         annotation_col=df,
+         main = "Beltsville Soy Fusarium",
+         annotation_colors = fsp_colors,
+         filename = "Beltsville/Beltsville_soy/fsp_soy_vst_fusarium_heat.pdf")
+
+# Beltsville corn
+fsp.corn <- readRDS("Beltsville/Beltsville_corn/Beltsville_corn.rds")
+fsp.corn.VST <- readRDS("Beltsville/Beltsville_corn/Beltsville_corn_vst.rds")
+
+fsp.corn.VST[fsp.corn.VST < 0.0] <- 0.0
+otu_table(fsp.corn) <- otu_table(fsp.corn.VST, taxa_are_rows = TRUE)
+
+fsp.bray <- ordinate(fsp.corn, method="PCoA", distance="bray")
+fsp.plot<-plot_ordination(fsp.corn, fsp.bray, type="samples", color="group", shape="year") +
+  geom_hline(yintercept = 0, color = "grey90") + 
+  geom_vline(xintercept = 0, color = "grey90") +
+  geom_point(size = 3) + 
+  ggtitle("Beltsville corn") + theme_classic() +
+  scale_color_manual(values = c("#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99", "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"))
+ggsave(filename = "Beltsville/Beltsville_corn/beltsville_corn_palette.pdf", 
+       plot = fsp.plot, width = 20, height = 14, units = "cm", 
+       device = "pdf", dpi = 300)
+fsp.plot
+
+# Beltsville Corn Fusarium
+df <- data.frame(sample_data(fsp.corn)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
+df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
+df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
+select <- taxa_names(subset_taxa(fsp.corn, Genus == "g__Fusarium"))
+vsttest <- as.data.frame(fsp.corn.VST[select,])
+vsttest <-vsttest[,rownames(df)]
+heat.tax <- as.data.frame(tax_table(fsp.corn)[row.names(vsttest)])
+heat.tax <- lapply(heat.tax, function(x) gsub("^[a-z]_\\w", "", x, perl = T))
+row.names(vsttest) <- paste(heat.tax$Genus, heat.tax$Species, heat.tax$fasta_name, sep = "_")
+vsttest <- vsttest[order(row.names(vsttest)),]
+
+pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T, 
+         show_colnames = F,
+         breaks = NA,
+         cluster_cols=F, 
+         annotation_col=df,
+         main = "Beltsville Corn Fusarium",
+         annotation_colors = fsp_colors,
+         filename = "Beltsville/Beltsville_corn/fsp_corn_vst_fusarium_heat.pdf")
+
 # Differentially abundant taxa 
 res <- results(diagdds, contrast = c("group", "CT_spraypost", "CT_no_spraypost"))
 alpha = 0.01
