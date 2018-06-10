@@ -117,7 +117,7 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   thing <- paste(loc, crop, sep = "_")
   
   # make folder tree to save output
-  out.dir <- paste(getwd(),loc,thing, sep = "/")
+  out.dir <- paste(getwd(),"vst",loc,thing, sep = "/")
   dir.create(out.dir, recursive = T)
   
   # determine the samples to work on
@@ -187,7 +187,7 @@ proc.time() - ptm
 # Execute from top level directory for each site. Edit as necessary.
 # tail -n +1 Stoneville_*/*.perm.txt | perl -p -e 's/^.*\/(\w+)\.perm\.txt.*$/$1/g' > all_permanova.txt
 
-# Final Figures ####
+# Fusarium Figures ####
 
 #Stoneville heatmap palette
 
@@ -197,26 +197,13 @@ sv_colors <- list(
   Sampling_date = c(post = "grey80", pre = "grey50")
 )
 
-# Stoneville soy
+# Stoneville Soy Fusarium 
 sv.soy <- readRDS("Stoneville/Stoneville_soy/Stoneville_soy.rds")
 sv.soy.VST <- readRDS("Stoneville/Stoneville_soy/Stoneville_soy_vst.rds")
 
 sv.soy.VST[sv.soy.VST < 0.0] <- 0.0
 otu_table(sv.soy) <- otu_table(sv.soy.VST, taxa_are_rows = TRUE)
 
-sv.bray <- ordinate(sv.soy, method="PCoA", distance="bray")
-sv.plot<-plot_ordination(sv.soy, sv.bray, type="samples", color="group", shape="year") +
-  geom_hline(yintercept = 0, color = "grey90") + 
-  geom_vline(xintercept = 0, color = "grey90") +
-  geom_point(size = 3) + 
-  ggtitle("Stoneville Soy") + theme_classic() +
-  scale_color_manual(values = c("#6A3D9A", "#CAB2D6", "#B15928", "#EEAD0E"))
-sv.plot
-ggsave(filename = "Stoneville/Stoneville_soy/stoneville_soy_palette.pdf", 
-       plot = sv.plot, width = 20, height = 14, units = "cm", 
-       device = "pdf", dpi = 300)
-
-# Stoneville Soy Fusarium 
 df <- data.frame(sample_data(sv.soy)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
 df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
 df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
@@ -237,26 +224,13 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_colors = sv_colors,
          filename = "Stoneville/Stoneville_soy/sv_soy_vst_fusarium_heat.pdf")
 
-# Stoneville Corn
+# Stoneville Corn Fusarium
 sv.corn <- readRDS("Stoneville/Stoneville_corn/Stoneville_corn.rds")
 sv.corn.VST <- readRDS("Stoneville/Stoneville_corn/Stoneville_corn_vst.rds")
 
 sv.corn.VST[sv.corn.VST < 0.0] <- 0.0
 otu_table(sv.corn) <- otu_table(sv.corn.VST, taxa_are_rows = TRUE)
 
-sv.bray <- ordinate(sv.corn, method="PCoA", distance="bray")
-sv.plot<-plot_ordination(sv.corn, sv.bray, type="samples", color="group", shape="year") +
-  geom_hline(yintercept = 0, color = "grey90") + 
-  geom_vline(xintercept = 0, color = "grey90") +
-  geom_point(size = 3) + 
-  ggtitle("Stoneville Corn") + theme_classic() +
-  scale_color_manual(values = c("#6A3D9A", "#CAB2D6", "#B15928", "#EEAD0E"))
-ggsave(filename = "Stoneville/Stoneville_corn/stoneville_corn_palette.pdf", 
-       plot = sv.plot, width = 20, height = 14, units = "cm", 
-       device = "pdf", dpi = 300)
-sv.plot
-
-# Stoneville Corn Fusarium
 df <- data.frame(sample_data(sv.corn)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
 df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
 df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
@@ -285,26 +259,13 @@ fsp_colors <- list(
   Sampling_date = c(post = "grey80", pre = "grey50")
 )
 
-# Beltsville soy
+# Beltsville Soy Fusarium
 fsp.soy <- readRDS("Beltsville/Beltsville_soy/Beltsville_soy.rds")
 fsp.soy.VST <- readRDS("Beltsville/Beltsville_soy/Beltsville_soy_vst.rds")
 
 fsp.soy.VST[fsp.soy.VST < 0.0] <- 0.0
 otu_table(fsp.soy) <- otu_table(fsp.soy.VST, taxa_are_rows = TRUE)
 
-fsp.bray <- ordinate(fsp.soy, method="PCoA", distance="bray")
-fsp.plot<-plot_ordination(fsp.soy, fsp.bray, type="samples", color="group", shape="year") +
-  geom_hline(yintercept = 0, color = "grey90") + 
-  geom_vline(xintercept = 0, color = "grey90") +
-  geom_point(size = 3) + 
-  ggtitle("Beltsville Soy") + theme_classic() +
-  scale_color_manual(values = c("#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99", "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"))
-ggsave(filename = "Beltsville/Beltsville_soy/beltsville_soy_palette.pdf", 
-       plot = fsp.plot, width = 20, height = 14, units = "cm", 
-       device = "pdf", dpi = 300)
-fsp.plot
-
-# Beltsville Soy Fusarium
 df <- data.frame(sample_data(fsp.soy)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
 df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
 df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
@@ -325,26 +286,13 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_colors = fsp_colors,
          filename = "Beltsville/Beltsville_soy/fsp_soy_vst_fusarium_heat.pdf")
 
-# Beltsville corn
+# Beltsville Corn Fusarium
 fsp.corn <- readRDS("Beltsville/Beltsville_corn/Beltsville_corn.rds")
 fsp.corn.VST <- readRDS("Beltsville/Beltsville_corn/Beltsville_corn_vst.rds")
 
 fsp.corn.VST[fsp.corn.VST < 0.0] <- 0.0
 otu_table(fsp.corn) <- otu_table(fsp.corn.VST, taxa_are_rows = TRUE)
 
-fsp.bray <- ordinate(fsp.corn, method="PCoA", distance="bray")
-fsp.plot<-plot_ordination(fsp.corn, fsp.bray, type="samples", color="group", shape="year") +
-  geom_hline(yintercept = 0, color = "grey90") + 
-  geom_vline(xintercept = 0, color = "grey90") +
-  geom_point(size = 3) + 
-  ggtitle("Beltsville corn") + theme_classic() +
-  scale_color_manual(values = c("#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99", "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"))
-ggsave(filename = "Beltsville/Beltsville_corn/beltsville_corn_palette.pdf", 
-       plot = fsp.plot, width = 20, height = 14, units = "cm", 
-       device = "pdf", dpi = 300)
-fsp.plot
-
-# Beltsville Corn Fusarium
 df <- data.frame(sample_data(fsp.corn)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
 df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
 df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
@@ -365,7 +313,7 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_colors = fsp_colors,
          filename = "Beltsville/Beltsville_corn/fsp_corn_vst_fusarium_heat.pdf")
 
-# Differentially abundant taxa 
+# Differentially abundant taxa ####
 res <- results(diagdds, contrast = c("group", "CT_spraypost", "CT_no_spraypost"))
 alpha = 0.01
 sigtab = res[which(res$padj < alpha), ]
@@ -387,4 +335,141 @@ sigtab$Genus = factor(as.character(sigtab$Genus), levels=names(x))
 ggplot(sigtab, aes(x=log2FoldChange, y=Genus, color=Order)) + geom_point(size=6) + 
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) +
   ggtitle("CT_spraypost CT_no_spraypost")
+
+#### Rarefied dataset ####
+# Import the rarefied phyloseq object ####
+
+ps.rare <- readRDS("fungi_RAREcomDat.rds")
+stone <- data.frame(sample_data(ps.rare))
+stone$System.loc <- as.character(stone$System.loc)
+stone$Herbicide_History <- as.character(stone$Herbicide_History)
+stone$System.loc[stone$Location == "Stoneville"] <- paste(stone$System.loc[stone$Location == "Stoneville"], stone$Herbicide_History[stone$Location == "Stoneville"], sep = "_")
+stone$System.loc <- as.factor(stone$System.loc)
+stone$Herbicide_History <- as.factor(stone$Herbicide_History)
+stone$year<-as.factor(stone$year)
+stone$group <- factor(paste(stone$System.loc, stone$Glyphosphate_Treatment, sep = "_"))
+stone$q_id <- factor(paste(stone$System.loc, stone$Glyphosphate_Treatment, stone$Soil_Zone, stone$year, sep = "_"))
+
+sample_data(ps.rare) <- stone
+#sample_data(ps.rare)$location_id <- paste(sample_data(ps.rare)$Location, sample_data(ps.rare)$Loc_plot_ID, sep = "_")
+
+# NMDS for all samples, all sites ####
+# At this point in the workflow there is no filtering of low abundance taxa
+# You might want to do that later, but you will need to build a filtered
+# phyloseq object 
+# remove Urbana sites and non-RR genotype samples first
+ps.rareREL <- subset_samples(ps.rare, Location != "Urbana" & genotype == "RR")
+ps.rareREL <- prune_taxa(taxa_sums(ps.rareREL) > 10, ps.rareREL)
+
+ps.rareREL  = transform_sample_counts(ps.rareREL, function(x) x / sum(x) )
+set.seed(1978)
+all.ord.nmds.bray <- ordinate(ps.rareREL, method="PCoA", distance="bray") #, maxit = 30000, sratmax = 0.99999999, sfgrmin = 1e-10)#, sratmax = 0.9999999)#, k = 2, sfgrmin = 1e-8, sratmax = 0.999999, maxit = 30000)
+all.plot<-plot_ordination(ps.rareREL, all.ord.nmds.bray, type="samples", color="System.loc", shape = "crop") + 
+  geom_hline(yintercept = 0, color = "grey90") + 
+  geom_vline(xintercept = 0, color = "grey90") +
+  geom_point(size = 2.5) + 
+  theme_classic() + 
+  scale_color_manual(values = c("#FF7F00", "#E31A1C", "#6A3D9A", "#B15928", "#33A02C","#1F78B4")) + 
+  ggtitle("All sites")
+all.plot
+ggsave("all_sites_pcoa_reltrans_rare_taxa.pdf", plot = all.plot, device = pdf, height = 6, width = 8)
+
+
+# Run standard workflow in parallel ####
+# create subsets for combinations of sample data values
+# this version is for Location, crop 
+# Genotype is hardcoded for this version. Search "genotype.row".
+meta <-data.frame(sample_data(ps.rare))
+unique.meta <- unique(meta[c("Location", "crop")])
+unique.meta <- unique.meta[(unique.meta$Location != "Urbana"),]
+
+# Set custom color palettes for each site when plotting PCoA
+# These colors are used throughout all graphics. 
+# Darker shades for System.loc, lighter for those that have been sprayed 
+unique.meta$palette[unique.meta$Location == "Beltsville"] <- list(c("#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99", "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"))
+unique.meta$palette[unique.meta$Location == "Stoneville"] <- list(c("#6A3D9A", "#CAB2D6", "#B15928", "#EEAD0E"))
+
+ptm <- proc.time()
+foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% { 
+  
+  # get variable values
+  loc <- as.character(unique.meta["Location"][a,])
+  crop <- as.character(unique.meta["crop"][a,])
+  pal <- unique.meta$palette[[a]]
+  
+  # make a name to recycle
+  thing <- paste(loc, crop, sep = "_")
+  
+  # make folder tree to save output
+  out.dir <- paste(getwd(),"rare",loc,thing, sep = "/")
+  dir.create(out.dir, recursive = T)
+  
+  # determine the samples to work on
+  #loc.list <- as.character(get_variable(ps.rare, "Location")) == loc
+  loc.row <- row.names(sample_data(ps.rare)[sample_data(ps.rare)$Location %in% loc, ])
+  crop.row <- row.names(sample_data(ps.rare)[sample_data(ps.rare)$crop %in% crop, ])
+  genotype.row <- row.names(meta[meta$genotype %in% "RR", ])
+  common.row <- Reduce(intersect, list(loc.row, crop.row, genotype.row))
+  
+  # prune phyloseq object to desired samples
+  ps.0 <- prune_samples(common.row, ps.rare)
+  ps.0 <- prune_taxa(taxa_sums(ps.0) > 10, ps.0)
+  saveRDS(ps.0, file.path(out.dir, paste(thing,".rds", sep = "")))
+  
+  # estimate richness, all available metrics
+  rich <- data.frame(estimate_richness(ps.0, measures = c("Observed", "Chao1", "Shannon", "Simpson")))
+  row.names(rich) <- sub("X", "", row.names(rich))
+  rich$samples <- row.names(rich)
+  
+  # plot richness after merging all samples per system
+  ps.0.st <- merge_samples(ps.0, "System.loc")
+  rich.p <- plot_richness(ps.0.st, measures = c("Observed", "Chao1", "Shannon", "Simpson"))
+  ggsave(filename = file.path(out.dir, paste(thing,"rare_rich","pdf", sep = ".")), 
+         plot = rich.p, width = 20, height = 14, units = "cm", 
+         device = "pdf", dpi = 300)
+  rm(ps.0.st, rich.p)
+  
+  # perform ordinations
+  bray <- ordinate(ps.0, method="PCoA", distance="bray")
+  ps.plot<-plot_ordination(ps.0, bray, type="samples", color="group", shape="year") +
+    ggtitle(paste(thing, "samples:", nsamples(ps.0), "taxa:", ntaxa(ps.0), sep = " ")) + 
+    theme_classic() +
+    geom_hline(yintercept = 0, color = "grey90") + 
+    geom_vline(xintercept = 0, color = "grey90") +
+    geom_point(size = 3) + 
+    scale_color_manual(values = pal)
+  ggsave(filename = file.path(out.dir, paste(thing,"pdf", sep = ".")), 
+         plot = ps.plot, width = 20, height = 14, units = "cm", 
+         device = "pdf", dpi = 300)
+  
+  # save vectors from PCoA and richness estimates for use in qiime2 longitudinal test
+  axisvals <- data.frame(bray$vectors)[,1:3]
+  axisvals$samples <- row.names(axisvals)
+  
+  meta <- data.frame(sample_data(ps.0))
+  meta$samples <- row.names(meta)
+  qiime <- left_join(meta, rich, by = "samples") %>% 
+    left_join(., axisvals, by = "samples")
+  write.table(qiime, sep = "\t", 
+              file = file.path(out.dir, paste(thing, "qiime", "txt", sep = ".")), 
+              row.names = F, quote = F)
+  
+  # perform PERMANOVA 
+  out <- adonis(otu_table(ps.0) ~ System.loc * year * Soil_Zone * Glyphosphate_Treatment * Sampling_date, 
+                strata = sample_data(ps.0)$Loc_plot_ID, 
+                data = as(sample_data(ps.0), "data.frame"),
+                method = "bray")
+  
+  write.table(as.matrix(cbind(rownames(out$aov.tab), out$aov.tab)), 
+              file = file.path(out.dir, paste(thing,"perm", "txt", sep = ".")), 
+              row.names = F, 
+              col.names = c("Variable", colnames(out$aov.tab)),
+              quote = F, sep = "\t")
+}
+proc.time() - ptm
+
+# Unix and Perl one-liner to combine all PERMANOVA output. 
+# Execute from top level directory for each site. Edit as necessary.
+# tail -n +1 Stoneville_*/*.perm.txt | perl -p -e 's/^.*\/(\w+)\.perm\.txt.*$/$1/g' > all_permanova.txt
+
 # END ####
