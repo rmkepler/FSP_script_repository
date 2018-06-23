@@ -16,8 +16,6 @@ library(dplyr)
 library(RColorBrewer)
 options(warnings=-1)
 
-# creation of phyloseq object ####
-
 # post-processing and error correction of metadata ####
 # correct version is imported below
 # this can be disregarded, but included for historical considerations
@@ -132,8 +130,8 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   ps.0 <- prune_taxa(taxa_sums(ps.0) > 10, ps.0)
   saveRDS(ps.0, file.path(out.dir, paste(thing,".rds", sep = "")))
   
-  # estimate richness, all available metrics
-  rich <- data.frame(estimate_richness(ps.0))
+  # estimate richness, selected metrics
+  rich <- data.frame(estimate_richness(ps.0), measures = c("Observed", "Chao1", "Shannon", "Simpson"))
   row.names(rich) <- sub("X", "", row.names(rich))
   rich$samples <- row.names(rich)
   
@@ -184,8 +182,8 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
 proc.time() - ptm
 
 # Unix and Perl one-liner to combine all PERMANOVA output. 
-# Execute from top level directory for each site. Edit as necessary.
-# tail -n +1 Stoneville_*/*.perm.txt | perl -p -e 's/^.*\/(\w+)\.perm\.txt.*$/$1/g' > all_permanova.txt
+# Execute from top level directory for each site. Edit as LOCATION necessary.
+# tail -n +1 LOCATION_*/*.perm.txt | perl -p -e 's/^.*\/(\w+)\.perm\.txt.*$/$1/g' > all_permanova.txt
 
 # Fusarium Figures ####
 
@@ -198,8 +196,8 @@ sv_colors <- list(
 )
 
 # Stoneville Soy Fusarium 
-sv.soy <- readRDS("Stoneville/Stoneville_soy/Stoneville_soy.rds")
-sv.soy.VST <- readRDS("Stoneville/Stoneville_soy/Stoneville_soy_vst.rds")
+sv.soy <- readRDS("vst/Stoneville/Stoneville_soy/Stoneville_soy.rds")
+sv.soy.VST <- readRDS("vst/Stoneville/Stoneville_soy/Stoneville_soy_vst.rds")
 
 sv.soy.VST[sv.soy.VST < 0.0] <- 0.0
 otu_table(sv.soy) <- otu_table(sv.soy.VST, taxa_are_rows = TRUE)
@@ -222,11 +220,11 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_col=df,
          main = "Stoneville Soy Fusarium",
          annotation_colors = sv_colors,
-         filename = "Stoneville/Stoneville_soy/sv_soy_vst_fusarium_heat.pdf")
+         filename = "vst/Stoneville/Stoneville_soy/sv_soy_vst_fusarium_heat.pdf")
 
 # Stoneville Corn Fusarium
-sv.corn <- readRDS("Stoneville/Stoneville_corn/Stoneville_corn.rds")
-sv.corn.VST <- readRDS("Stoneville/Stoneville_corn/Stoneville_corn_vst.rds")
+sv.corn <- readRDS("vst/Stoneville/Stoneville_corn/Stoneville_corn.rds")
+sv.corn.VST <- readRDS("vst/Stoneville/Stoneville_corn/Stoneville_corn_vst.rds")
 
 sv.corn.VST[sv.corn.VST < 0.0] <- 0.0
 otu_table(sv.corn) <- otu_table(sv.corn.VST, taxa_are_rows = TRUE)
@@ -249,7 +247,7 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_col=df,
          main = "Stoneville Corn Fusarium",
          annotation_colors = sv_colors,
-         filename = "Stoneville/Stoneville_corn/sv_corn_vst_fusarium_heat.pdf")
+         filename = "vst/Stoneville/Stoneville_corn/sv_corn_vst_fusarium_heat.pdf")
 
 #Beltsville heatmap palette
 
@@ -260,8 +258,8 @@ fsp_colors <- list(
 )
 
 # Beltsville Soy Fusarium
-fsp.soy <- readRDS("Beltsville/Beltsville_soy/Beltsville_soy.rds")
-fsp.soy.VST <- readRDS("Beltsville/Beltsville_soy/Beltsville_soy_vst.rds")
+fsp.soy <- readRDS("vst/Beltsville/Beltsville_soy/Beltsville_soy.rds")
+fsp.soy.VST <- readRDS("vst/Beltsville/Beltsville_soy/Beltsville_soy_vst.rds")
 
 fsp.soy.VST[fsp.soy.VST < 0.0] <- 0.0
 otu_table(fsp.soy) <- otu_table(fsp.soy.VST, taxa_are_rows = TRUE)
@@ -284,11 +282,11 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_col=df,
          main = "Beltsville Soy Fusarium",
          annotation_colors = fsp_colors,
-         filename = "Beltsville/Beltsville_soy/fsp_soy_vst_fusarium_heat.pdf")
+         filename = "vst/Beltsville/Beltsville_soy/fsp_soy_vst_fusarium_heat.pdf")
 
 # Beltsville Corn Fusarium
-fsp.corn <- readRDS("Beltsville/Beltsville_corn/Beltsville_corn.rds")
-fsp.corn.VST <- readRDS("Beltsville/Beltsville_corn/Beltsville_corn_vst.rds")
+fsp.corn <- readRDS("vst/Beltsville/Beltsville_corn/Beltsville_corn.rds")
+fsp.corn.VST <- readRDS("vst/Beltsville/Beltsville_corn/Beltsville_corn_vst.rds")
 
 fsp.corn.VST[fsp.corn.VST < 0.0] <- 0.0
 otu_table(fsp.corn) <- otu_table(fsp.corn.VST, taxa_are_rows = TRUE)
@@ -311,7 +309,7 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_col=df,
          main = "Beltsville Corn Fusarium",
          annotation_colors = fsp_colors,
-         filename = "Beltsville/Beltsville_corn/fsp_corn_vst_fusarium_heat.pdf")
+         filename = "vst/Beltsville/Beltsville_corn/fsp_corn_vst_fusarium_heat.pdf")
 
 # Differentially abundant taxa ####
 res <- results(diagdds, contrast = c("group", "CT_spraypost", "CT_no_spraypost"))
@@ -354,9 +352,7 @@ sample_data(ps.rare) <- stone
 #sample_data(ps.rare)$location_id <- paste(sample_data(ps.rare)$Location, sample_data(ps.rare)$Loc_plot_ID, sep = "_")
 
 # NMDS for all samples, all sites ####
-# At this point in the workflow there is no filtering of low abundance taxa
-# You might want to do that later, but you will need to build a filtered
-# phyloseq object 
+ 
 # remove Urbana sites and non-RR genotype samples first
 ps.rareREL <- subset_samples(ps.rare, Location != "Urbana" & genotype == "RR")
 ps.rareREL <- prune_taxa(taxa_sums(ps.rareREL) > 10, ps.rareREL)
@@ -389,6 +385,8 @@ unique.meta <- unique.meta[(unique.meta$Location != "Urbana"),]
 unique.meta$palette[unique.meta$Location == "Beltsville"] <- list(c("#FF7F00", "#FDBF6F", "#E31A1C", "#FB9A99", "#33A02C", "#B2DF8A", "#1F78B4", "#A6CEE3"))
 unique.meta$palette[unique.meta$Location == "Stoneville"] <- list(c("#6A3D9A", "#CAB2D6", "#B15928", "#EEAD0E"))
 
+registerDoMC(cores = 8)
+
 ptm <- proc.time()
 foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% { 
   
@@ -401,7 +399,7 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   thing <- paste(loc, crop, sep = "_")
   
   # make folder tree to save output
-  out.dir <- paste(getwd(),"rare",loc,thing, sep = "/")
+  out.dir <- paste(getwd(),"grid",loc,thing, sep = "/")
   dir.create(out.dir, recursive = T)
   
   # determine the samples to work on
@@ -416,10 +414,29 @@ foreach(a=1:nrow(unique.meta), .packages = c("phyloseq")) %dopar% {
   ps.0 <- prune_taxa(taxa_sums(ps.0) > 10, ps.0)
   saveRDS(ps.0, file.path(out.dir, paste(thing,".rds", sep = "")))
   
-  # estimate richness, all available metrics
+  # estimate richness, selected metrics
   rich <- data.frame(estimate_richness(ps.0, measures = c("Observed", "Chao1", "Shannon", "Simpson")))
   row.names(rich) <- sub("X", "", row.names(rich))
   rich$samples <- row.names(rich)
+  sample_data(ps.0)$Shannon <- rich$Shannon
+  
+  rich.grid <- ggplot(data = sample_data(ps.0), aes(x = Sampling_date, y = Shannon, group = Glyphosphate_Treatment)) + 
+    #geom_point(aes(color = year, shape = Soil_Zone)) + 
+    geom_point(position = position_jitter(width = 0.2, height = 0.2), alpha = 0.2) + 
+    #stat_summary(fun.data = 'mean_sdl', geom = 'errorbar', width = 0.2, size = 1) +
+    stat_summary(fun.y = mean, geom = 'point', size = 3, color = 'red') +
+    stat_summary(fun.y = mean, geom = 'line', size = 1, color = 'red') +
+    facet_grid(Glyphosphate_Treatment ~ System.loc) +
+    theme_bw() +
+    ggtitle(thing) +
+    xlab("Sampling Date") +
+    ylab("Richness") + 
+    scale_x_discrete(limits=c("pre", "post")) +
+    theme(axis.text.x=element_text(angle=90,hjust=1))
+  
+  ggsave(filename = file.path(out.dir, paste(thing,"sys_loc_rich","pdf", sep = ".")), 
+         plot = rich.grid, width = 20, height = 10, units = "cm", 
+         device = "pdf", dpi = 300)
   
   # plot richness after merging all samples per system
   ps.0.st <- merge_samples(ps.0, "System.loc")
