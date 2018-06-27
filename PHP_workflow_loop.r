@@ -66,7 +66,7 @@ taxa_names(ps.new)[1:5]
 ps.new <- subset_taxa(ps.new, Kingdom == "k__Fungi")
 ntaxa(ps.new)
 
-# NMDS for all samples, all sites ####
+# Ordination for all samples, all sites ####
 # At this point in the workflow there is no filtering of low abundance taxa
 # You might want to do that later, but you will need to build a filtered
 # phyloseq object 
@@ -201,10 +201,12 @@ sv.soy.VST <- readRDS("vst/Stoneville/Stoneville_soy/Stoneville_soy_vst.rds")
 
 sv.soy.VST[sv.soy.VST < 0.0] <- 0.0
 otu_table(sv.soy) <- otu_table(sv.soy.VST, taxa_are_rows = TRUE)
+sv.soy <- subset_samples(sv.soy, Sampling_date == "post")
+sv.soy <- prune_taxa(taxa_sums(sv.soy) > 0, sv.soy)
 
-df <- data.frame(sample_data(sv.soy)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
-df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
-df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
+df <- data.frame(sample_data(sv.soy)[,c("System.loc", "Glyphosphate_Treatment")])
+#df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
+df <- df[with(df, order(Glyphosphate_Treatment,System.loc)), ]
 select <- taxa_names(subset_taxa(sv.soy, Genus == "g__Fusarium"))
 vsttest <- as.data.frame(sv.soy.VST[select,])
 vsttest <-vsttest[,rownames(df)]
@@ -219,8 +221,10 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          cluster_cols=F, 
          annotation_col=df,
          main = "Stoneville Soy Fusarium",
+         gaps_col = 32,
          annotation_colors = sv_colors,
-         filename = "vst/Stoneville/Stoneville_soy/sv_soy_vst_fusarium_heat.pdf")
+         border_color = NA,
+         filename = "vst/Stoneville/Stoneville_soy/sv_soy_vst_fusarium_heat2.pdf")
 
 # Stoneville Corn Fusarium
 sv.corn <- readRDS("vst/Stoneville/Stoneville_corn/Stoneville_corn.rds")
@@ -228,10 +232,12 @@ sv.corn.VST <- readRDS("vst/Stoneville/Stoneville_corn/Stoneville_corn_vst.rds")
 
 sv.corn.VST[sv.corn.VST < 0.0] <- 0.0
 otu_table(sv.corn) <- otu_table(sv.corn.VST, taxa_are_rows = TRUE)
+sv.corn <- subset_samples(sv.corn, Sampling_date == "post")
+sv.corn <- prune_taxa(taxa_sums(sv.corn) > 0, sv.corn)
 
-df <- data.frame(sample_data(sv.corn)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
-df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
-df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
+df <- data.frame(sample_data(sv.corn)[,c("System.loc", "Glyphosphate_Treatment")])
+#df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
+df <- df[with(df, order(Glyphosphate_Treatment,System.loc)), ]
 select <- taxa_names(subset_taxa(sv.corn, Genus == "g__Fusarium"))
 vsttest <- as.data.frame(sv.corn.VST[select,])
 vsttest <-vsttest[,rownames(df)]
@@ -247,7 +253,9 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_col=df,
          main = "Stoneville Corn Fusarium",
          annotation_colors = sv_colors,
-         filename = "vst/Stoneville/Stoneville_corn/sv_corn_vst_fusarium_heat.pdf")
+         gaps_col = 32,
+         border_color = NA,
+         filename = "vst/Stoneville/Stoneville_corn/sv_corn_vst_fusarium_heat2.pdf")
 
 #Beltsville heatmap palette
 
@@ -260,13 +268,13 @@ fsp_colors <- list(
 # Beltsville Soy Fusarium
 fsp.soy <- readRDS("vst/Beltsville/Beltsville_soy/Beltsville_soy.rds")
 fsp.soy.VST <- readRDS("vst/Beltsville/Beltsville_soy/Beltsville_soy_vst.rds")
-
+fsp.soy <- subset_samples(fsp.soy, Sampling_date == "post")
+fsp.soy <- prune_taxa(taxa_sums(fsp.soy) > 0, fsp.soy)
 fsp.soy.VST[fsp.soy.VST < 0.0] <- 0.0
 otu_table(fsp.soy) <- otu_table(fsp.soy.VST, taxa_are_rows = TRUE)
 
-df <- data.frame(sample_data(fsp.soy)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
-df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
-df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
+df <- data.frame(sample_data(fsp.soy)[,c("System.loc", "Glyphosphate_Treatment")])
+df <- df[with(df, order(Glyphosphate_Treatment,System.loc)), ]
 select <- taxa_names(subset_taxa(fsp.soy, Genus == "g__Fusarium"))
 vsttest <- as.data.frame(fsp.soy.VST[select,])
 vsttest <-vsttest[,rownames(df)]
@@ -282,18 +290,21 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_col=df,
          main = "Beltsville Soy Fusarium",
          annotation_colors = fsp_colors,
-         filename = "vst/Beltsville/Beltsville_soy/fsp_soy_vst_fusarium_heat.pdf")
+         gaps_col = 64,
+         border_color = NA,
+         filename = "vst/Beltsville/Beltsville_soy/fsp_soy_vst_fusarium_heat2.pdf")
 
 # Beltsville Corn Fusarium
 fsp.corn <- readRDS("vst/Beltsville/Beltsville_corn/Beltsville_corn.rds")
 fsp.corn.VST <- readRDS("vst/Beltsville/Beltsville_corn/Beltsville_corn_vst.rds")
+fsp.corn <- subset_samples(fsp.corn, Sampling_date == "post")
+fsp.corn <- prune_taxa(taxa_sums(fsp.corn) > 0, fsp.corn)
 
 fsp.corn.VST[fsp.corn.VST < 0.0] <- 0.0
 otu_table(fsp.corn) <- otu_table(fsp.corn.VST, taxa_are_rows = TRUE)
 
-df <- data.frame(sample_data(fsp.corn)[,c("Sampling_date", "System.loc", "Glyphosphate_Treatment")])
-df$Sampling_date <- ordered(df$Sampling_date, levels = c("pre", "post"))
-df <- df[with(df, order(Glyphosphate_Treatment,System.loc,Sampling_date)), ]
+df <- data.frame(sample_data(fsp.corn)[,c("System.loc", "Glyphosphate_Treatment")])
+df <- df[with(df, order(Glyphosphate_Treatment,System.loc)), ]
 select <- taxa_names(subset_taxa(fsp.corn, Genus == "g__Fusarium"))
 vsttest <- as.data.frame(fsp.corn.VST[select,])
 vsttest <-vsttest[,rownames(df)]
@@ -309,7 +320,9 @@ pheatmap(vsttest, cluster_rows=FALSE, show_rownames=T,
          annotation_col=df,
          main = "Beltsville Corn Fusarium",
          annotation_colors = fsp_colors,
-         filename = "vst/Beltsville/Beltsville_corn/fsp_corn_vst_fusarium_heat.pdf")
+         gaps_col = 64,
+         border_color = NA,
+         filename = "vst/Beltsville/Beltsville_corn/fsp_corn_vst_fusarium_heat2.pdf")
 
 # Differentially abundant taxa ####
 res <- results(diagdds, contrast = c("group", "CT_spraypost", "CT_no_spraypost"))
