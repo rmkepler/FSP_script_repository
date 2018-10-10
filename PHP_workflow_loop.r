@@ -48,6 +48,7 @@ phpmeta$year<-as.factor(phpmeta$year)
 
 # Make alternate sampleID and variables
 phpmeta$group <- factor(paste(phpmeta$System.loc, phpmeta$Glyphosphate_Treatment, sep = "_"))
+phpmeta$contrast_group <- factor(paste(phpmeta$System.loc, phpmeta$Glyphosphate_Treatment, phpmeta$Sampling_date, sep = "_"))
 phpmeta$q_id <- factor(paste(phpmeta$System.loc, phpmeta$Glyphosphate_Treatment, phpmeta$Soil_Zone, phpmeta$year, sep = "_"))
 
 ps.new <- phyloseq(otu_table(seqtab.new, taxa_are_rows=FALSE), 
@@ -67,6 +68,7 @@ ps.new <- subset_taxa(ps.new, Kingdom == "k__Fungi")
 ntaxa(ps.new)
 
 # Ordination for all samples, all sites ####
+
 # At this point in the workflow there is no filtering of low abundance taxa
 # You might want to do that later, but you will need to build a filtered
 # phyloseq object 
@@ -75,6 +77,7 @@ ps.newREL <- subset_samples(ps.new, Location != "Urbana" & genotype == "RR")
 ps.newREL <- prune_taxa(taxa_sums(ps.newREL) > 10, ps.newREL)
 
 ps.newREL  = transform_sample_counts(ps.newREL, function(x) x / sum(x) )
+
 set.seed(1978)
 all.ord.nmds.bray <- ordinate(ps.newREL, method="PCoA", distance="bray") #, maxit = 30000, sratmax = 0.99999999, sfgrmin = 1e-10)#, sratmax = 0.9999999)#, k = 2, sfgrmin = 1e-8, sratmax = 0.999999, maxit = 30000)
 all.plot<-plot_ordination(ps.newREL, all.ord.nmds.bray, type="samples", color="System.loc", shape = "crop") + 
@@ -87,6 +90,10 @@ all.plot<-plot_ordination(ps.newREL, all.ord.nmds.bray, type="samples", color="S
 all.plot
 ggsave("all_sites_pcoa_reltrans_taxa.pdf", plot = all.plot, device = pdf, height = 6, width = 8)
 
+# Permanova for all sites and samples
+out0 <- adonis(otu_table(ps.newREL) ~ Location * crop * System.loc, 
+              as(sample_data(ps.newREL), "data.frame"),
+              method = "bray")
 
 # Run standard workflow in parallel ####
 # create subsets for combinations of sample data values
@@ -383,6 +390,10 @@ all.plot<-plot_ordination(ps.rareREL, all.ord.nmds.bray, type="samples", color="
 all.plot
 ggsave("all_sites_pcoa_reltrans_rare_taxa.pdf", plot = all.plot, device = pdf, height = 6, width = 8)
 
+# Permanova for all sites and samples
+out <- adonis(otu_table(ps.rare) ~ Location * crop * System.loc, 
+              as(sample_data(ps.rare), "data.frame"),
+              method = "bray")
 
 # Run standard workflow in parallel ####
 # create subsets for combinations of sample data values
