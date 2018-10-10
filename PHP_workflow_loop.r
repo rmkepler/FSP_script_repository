@@ -1,5 +1,7 @@
 # Session configuration ####
 
+test
+
 setwd("~/Documents/PHP/fungi")
 
 library(ggplot2)
